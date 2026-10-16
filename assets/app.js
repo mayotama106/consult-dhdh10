@@ -7,10 +7,13 @@
 
   const FWS = window.FRAMEWORKS;
   const CATS = window.CATEGORIES;
+  const THEMES = window.THEMES;
+  const D = window.Diagram;
   const catName = (id) => (CATS.find((c) => c.id === id) || {}).name || '';
   const $ = (id) => document.getElementById(id);
   const STORE = 'fw-zukan:';
   const PNG_SCALE = 2;
+  const SAMPLE_NOTE = '※ サンプルは架空の事例です';
 
   // 要素数を増減できるレイアウト [最小, 最大]
   const VARIABLE = { columns: [2, 6], flow: [2, 5], stack: [2, 6], cycle: [3, 6] };
@@ -25,18 +28,26 @@
 
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
-  function load(id) {
+  function read(key, fallback) {
     try {
-      const raw = localStorage.getItem(STORE + id);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+      const raw = localStorage.getItem(STORE + key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (e) { return fallback; }
   }
-  function save(id, data) {
-    try { localStorage.setItem(STORE + id, JSON.stringify(data)); } catch (e) { /* 保存できない環境では何もしない */ }
+  function write(key, value) {
+    try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch (e) { /* 保存できない環境では何もしない */ }
   }
-  function forget(id) {
-    try { localStorage.removeItem(STORE + id); } catch (e) { /* noop */ }
+  function remove(key) {
+    try { localStorage.removeItem(STORE + key); } catch (e) { /* noop */ }
   }
+
+  const state = {
+    cat: 'all',
+    q: '',
+    theme: read('theme', THEMES[0].id),
+    view: read('view', 'slide'), // 'slide' | 'figure'
+  };
+  if (!THEMES.some((t) => t.id === state.theme)) state.theme = THEMES[0].id;
 
   // ---------- トースト ----------
   let toastTimer;
@@ -48,8 +59,47 @@
     toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
   }
 
+  // ---------- デザインパターンの選択（全画面共通） ----------
+  function buildThemePickers() {
+    document.querySelectorAll('[data-theme-picker]').forEach((box) => {
+      box.innerHTML = '';
+      THEMES.forEach((t) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'theme-opt';
+        b.setAttribute('aria-pressed', String(t.id === state.theme));
+        b.title = t.note;
+        const sw = document.createElement('span');
+        sw.className = 'theme-sw';
+        sw.style.background = t.colors.bg;
+        sw.style.borderColor = t.colors.line;
+        sw.style.borderRadius = Math.min(t.style.radius, 6) + 'px';
+        [t.colors.primary].concat(t.colors.accents.slice(0, 3)).forEach((c) => {
+          const i = document.createElement('i');
+          i.style.background = c;
+          sw.appendChild(i);
+        });
+        b.appendChild(sw);
+        const name = document.createElement('span');
+        name.textContent = t.name;
+        b.appendChild(name);
+        b.addEventListener('click', () => setTheme(t.id));
+        box.appendChild(b);
+      });
+    });
+  }
+
+  function setTheme(id) {
+    if (id === state.theme) return;
+    state.theme = id;
+    write('theme', id);
+    for (const k in thumbs) delete thumbs[k];
+    buildThemePickers();
+    if (cur) renderStage(); else buildGallery();
+    toast(`デザインを「${D.themeById(id).name}」にしました。すべての図に反映されます。`);
+  }
+
   // ---------- 一覧 ----------
-  const state = { cat: 'all', q: '' };
   const thumbs = {};
 
   function buildChips() {
@@ -79,7 +129,7 @@
   }
 
   function thumb(f) {
-    if (!thumbs[f.id]) thumbs[f.id] = window.Diagram.render(f, f.data);
+    if (!thumbs[f.id]) thumbs[f.id] = D.toSVG(D.render(f, f.data, { theme: state.theme }));
     return thumbs[f.id].cloneNode(true);
   }
 
@@ -107,7 +157,7 @@
         const meta = document.createElement('div');
         meta.className = 'meta';
         meta.innerHTML = `
-          <h3>${f.name}${load(f.id) ? '<span class="edited">編集あり</span>' : ''}</h3>
+          <h3>${f.name}${read('data:' + f.id, null) ? '<span class="edited">編集あり</span>' : ''}</h3>
           <p class="en">${f.en}</p>
           <p class="sum">${f.summary}</p>`;
         a.appendChild(meta);
@@ -123,8 +173,17 @@
   let cur = null; // { fw, data }
   let renderTimer;
 
+  function defaults(fw) {
+    const d = clone(fw.data);
+    d.slide = { title: fw.name, message: fw.message || '', note: SAMPLE_NOTE };
+    return d;
+  }
+
   function showDetail(fw) {
-    cur = { fw, data: load(fw.id) || clone(fw.data) };
+    const saved = read('data:' + fw.id, null);
+    const data = saved || defaults(fw);
+    if (!data.slide) data.slide = defaults(fw).slide;
+    cur = { fw, data };
     $('gallery-view').hidden = true;
     $('detail-view').hidden = false;
     $('d-cat').textContent = catName(fw.cat);
@@ -135,6 +194,7 @@
     fillList($('d-when'), fw.when);
     fillList($('d-tips'), fw.tips);
     document.title = fw.name + '｜フレームワーク図鑑';
+    syncViewTabs();
     buildEditor();
     renderStage();
     window.scrollTo(0, 0);
@@ -145,22 +205,36 @@
     arr.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
   }
 
+  function currentScene() {
+    const opts = { theme: state.theme };
+    return state.view === 'slide'
+      ? D.slide(cur.fw, cur.data, cur.data.slide, opts)
+      : D.render(cur.fw, cur.data, opts);
+  }
+
   function renderStage() {
     const stage = $('stage');
     stage.innerHTML = '';
-    const svg = window.Diagram.render(cur.fw, cur.data);
+    const svg = D.toSVG(currentScene());
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', cur.fw.name + 'の図');
+    svg.setAttribute('aria-label', cur.fw.name + (state.view === 'slide' ? 'のスライド' : 'の図'));
     stage.appendChild(svg);
     const vb = svg.viewBox.baseVal;
-    document.querySelector('.ratio').textContent =
-      `${vb.height === window.Diagram.H ? '16:9' : '縦長'}・${vb.width * PNG_SCALE}×${vb.height * PNG_SCALE}px`;
+    $('ratio').textContent = `${vb.height === D.BASE_H ? '16:9' : '縦長'}・PNG ${vb.width * PNG_SCALE}×${vb.height * PNG_SCALE}px`;
   }
 
   function changed() {
-    save(cur.fw.id, cur.data);
+    write('data:' + cur.fw.id, cur.data);
     clearTimeout(renderTimer);
     renderTimer = setTimeout(renderStage, 80);
+  }
+
+  function syncViewTabs() {
+    document.querySelectorAll('[data-view]').forEach((b) => {
+      b.setAttribute('aria-selected', String(b.dataset.view === state.view));
+    });
+    const sf = $('slide-fields');
+    if (sf) sf.hidden = state.view !== 'slide';
   }
 
   // ---------- エディタ ----------
@@ -213,6 +287,16 @@
     form.innerHTML = '';
     const { fw, data } = cur;
 
+    // スライドの文言
+    const sl = data.slide;
+    const sg = group('スライドの文言', 'タイトルの下に入るキーメッセージは、そのスライドで一番言いたいことを1文で。');
+    sg.id = 'slide-fields';
+    sg.appendChild(field('タイトル', 'sl-title', input(sl.title, (v) => { sl.title = v; })));
+    sg.appendChild(field('キーメッセージ', 'sl-msg', textarea(sl.message, 2, (v) => { sl.message = v; })));
+    sg.appendChild(field('出典・注記（左下）', 'sl-note', input(sl.note, (v) => { sl.note = v; })));
+    sg.hidden = state.view !== 'slide';
+    form.appendChild(sg);
+
     if (data.axes) {
       const scatter = fw.layout === 'scatter';
       const g = group('軸ラベル');
@@ -262,8 +346,7 @@
       t.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return;
         e.preventDefault();
-        const s = t.selectionStart, end = t.selectionEnd;
-        t.setRangeText('  ', s, end, 'end');
+        t.setRangeText('  ', t.selectionStart, t.selectionEnd, 'end');
         t.dispatchEvent(new Event('input'));
       });
       g.appendChild(field('項目（インデントで階層）', 'tree', t));
@@ -341,10 +424,7 @@
 
   // ---------- 書き出し ----------
   function currentSvg() { return $('stage').querySelector('svg'); }
-
-  function svgText(svg) {
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
-  }
+  function fileBase() { return cur.fw.name + (state.view === 'slide' ? '_スライド' : ''); }
 
   function pngBlob(svg) {
     return new Promise((resolve, reject) => {
@@ -354,10 +434,7 @@
         const c = document.createElement('canvas');
         c.width = vb.width * PNG_SCALE;
         c.height = vb.height * PNG_SCALE;
-        const g = c.getContext('2d');
-        g.fillStyle = '#FFFFFF';
-        g.fillRect(0, 0, c.width, c.height);
-        g.drawImage(img, 0, 0, c.width, c.height);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         c.toBlob((b) => (b ? resolve(b) : reject(new Error('PNGを作成できませんでした'))), 'image/png');
       };
       img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
@@ -377,6 +454,27 @@
   }
 
   function bindToolbar() {
+    document.querySelectorAll('[data-view]').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.view = b.dataset.view;
+        write('view', state.view);
+        syncViewTabs();
+        renderStage();
+      });
+    });
+
+    const pptBtn = $('btn-pptx');
+    pptBtn.addEventListener('click', () => {
+      if (!D.toPptx) return;
+      pptBtn.disabled = true;
+      const label = pptBtn.textContent;
+      pptBtn.textContent = '書き出し中…';
+      D.toPptx([currentScene()], fileBase(), { title: cur.data.slide.title || cur.fw.name }).then(
+        () => toast('PowerPointファイルを保存しました。図形のまま編集できます。'),
+        (e) => toast(e.message || 'PowerPointに書き出せませんでした。')
+      ).finally(() => { pptBtn.disabled = false; pptBtn.textContent = label; });
+    });
+
     $('btn-copy').addEventListener('click', () => {
       const svg = currentSvg();
       if (!svg) return;
@@ -393,18 +491,25 @@
     $('btn-png').addEventListener('click', () => {
       const svg = currentSvg();
       if (!svg) return;
-      pngBlob(svg).then((b) => { download(b, cur.fw.name + '.png'); toast('PNGを保存しました。'); }, (e) => toast(e.message));
+      pngBlob(svg).then((b) => { download(b, fileBase() + '.png'); toast('PNGを保存しました。'); }, (e) => toast(e.message));
     });
     $('btn-svg').addEventListener('click', () => {
       const svg = currentSvg();
       if (!svg) return;
-      download(new Blob([svgText(svg)], { type: 'image/svg+xml' }), cur.fw.name + '.svg');
+      const text = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
+      download(new Blob([text], { type: 'image/svg+xml' }), fileBase() + '.svg');
       toast('SVGを保存しました。');
     });
 
     // confirm() が使えない環境もあるため、2回押しで確定する
     let armed = false, armTimer;
     const reset = $('btn-reset');
+    function disarm() {
+      armed = false;
+      clearTimeout(armTimer);
+      reset.textContent = 'サンプルに戻す';
+      reset.classList.remove('warn');
+    }
     reset.addEventListener('click', () => {
       if (!armed) {
         armed = true;
@@ -414,18 +519,12 @@
         return;
       }
       disarm();
-      forget(cur.fw.id);
-      cur.data = clone(cur.fw.data);
+      remove('data:' + cur.fw.id);
+      cur.data = defaults(cur.fw);
       buildEditor();
       renderStage();
       toast('サンプルの内容に戻しました。');
     });
-    function disarm() {
-      armed = false;
-      clearTimeout(armTimer);
-      reset.textContent = 'サンプルに戻す';
-      reset.classList.remove('warn');
-    }
   }
 
   // ---------- ルーティング ----------
@@ -443,10 +542,20 @@
     }
   }
 
+  // 旧バージョンの保存データ（キー名が違う）を引き継ぐ
+  function migrate() {
+    FWS.forEach((f) => {
+      const old = read(f.id, null);
+      if (old && !read('data:' + f.id, null)) { write('data:' + f.id, old); remove(f.id); }
+    });
+  }
+
   function init() {
+    migrate();
     $('head-count').textContent = `${FWS.length}種類のフレームワーク`;
     $('q').addEventListener('input', (e) => { state.q = e.target.value; buildGallery(); });
     buildChips();
+    buildThemePickers();
     bindToolbar();
     window.addEventListener('hashchange', route);
     route();

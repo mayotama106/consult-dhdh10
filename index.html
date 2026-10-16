@@ -31,7 +31,7 @@
   <section id="gallery-view">
     <div class="intro">
       <h1>資料でよく使う図を、<br>選んで、書き換えて、貼る。</h1>
-      <p>3CやSWOTなど、コンサルの資料で繰り返し登場するフレームワークを集めました。図を開いて項目を書き換えると、16:9の図がその場で作られます。PNGでコピーすればそのままスライドに貼れます。</p>
+      <p>3CやSWOTなど、コンサルの資料で繰り返し登場するフレームワークを集めました。図を開いて項目を書き換えると、タイトルとキーメッセージ付きのスライドがその場でできます。PowerPointには図形のまま書き出せるので、あとから手で直せます。</p>
     </div>
     <div class="filters">
       <label class="search">
@@ -39,6 +39,10 @@
         <input id="q" type="search" placeholder="名前・用途で探す（例：競合、優先順位）" autocomplete="off">
       </label>
       <div class="chips" id="chips" role="tablist" aria-label="カテゴリ"></div>
+    </div>
+    <div class="design-row">
+      <span class="design-label">デザイン</span>
+      <div class="theme-picker" data-theme-picker role="group" aria-label="デザインパターン"></div>
     </div>
     <div id="gallery"></div>
     <p class="empty" id="empty" hidden>該当するフレームワークがありません。別の言葉で探してみてください。</p>
@@ -55,14 +59,19 @@
     </header>
     <div class="d-body">
       <div class="d-main">
+        <div class="view-tabs" role="tablist" aria-label="表示">
+          <button type="button" role="tab" data-view="slide">スライド</button>
+          <button type="button" role="tab" data-view="figure">図のみ</button>
+        </div>
         <div class="stage-wrap">
           <div class="stage" id="stage"></div>
         </div>
         <div class="toolbar">
-          <button type="button" class="btn primary" id="btn-copy">PNGをコピー</button>
+          <button type="button" class="btn primary" id="btn-pptx">PowerPointで保存</button>
+          <button type="button" class="btn" id="btn-copy">PNGをコピー</button>
           <button type="button" class="btn" id="btn-png">PNG保存</button>
           <button type="button" class="btn" id="btn-svg">SVG保存</button>
-          <span class="ratio">16:9・1920×1080px</span>
+          <span class="ratio" id="ratio"></span>
         </div>
         <div class="guide">
           <div>
@@ -85,6 +94,11 @@
           <button type="button" class="btn small" id="btn-reset">サンプルに戻す</button>
         </div>
         <p class="ed-note" id="ed-note">サンプルは架空のカフェチェーンの例です。書き換えると図にすぐ反映され、このブラウザに保存されます。</p>
+        <fieldset class="ed-group">
+          <legend>デザイン</legend>
+          <p class="hint">すべての図に共通で反映されます。</p>
+          <div class="theme-picker" data-theme-picker role="group" aria-label="デザインパターン"></div>
+        </fieldset>
         <form id="ed-form" autocomplete="off"></form>
       </aside>
     </div>
@@ -97,8 +111,11 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="assets/themes.js"></script>
 <script src="assets/frameworks.js"></script>
-<script src="assets/render.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/layouts.js"></script>
+<script src="assets/pptx.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>

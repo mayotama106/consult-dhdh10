@@ -199,7 +199,6 @@ main.wrap { padding-block: 32px 64px; }
 .thumb {
   aspect-ratio: 16 / 9;
   max-width: 100%;
-  background: #FFFFFF;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
@@ -272,7 +271,6 @@ main.wrap { padding-block: 32px 64px; }
 .d-main { min-width: 0; display: grid; gap: 16px; }
 .stage-wrap { overflow-x: auto; }
 .stage {
-  background: #FFFFFF;
   border-radius: 6px;
   box-shadow: var(--slide-shadow);
   border: 1px solid var(--line);
@@ -321,6 +319,59 @@ main.wrap { padding-block: 32px 64px; }
 }
 .guide ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .guide p { margin: 0; font-size: var(--fs-sm); }
+
+/* デザインパターンの選択 */
+.design-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+.design-label { font-size: var(--fs-sm); color: var(--ink-2); }
+.theme-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.theme-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 5px 10px 5px 6px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.theme-opt:hover { border-color: var(--accent); }
+.theme-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+.theme-sw {
+  display: grid;
+  grid-template-columns: repeat(4, 7px);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid;
+}
+.theme-sw i { display: block; width: 7px; height: 14px; border-radius: 1px; }
+
+/* 表示の切り替え（スライド / 図のみ） */
+.view-tabs {
+  justify-self: start;
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--surface);
+}
+.view-tabs button {
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.view-tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.btn:disabled { opacity: .6; cursor: progress; }
 
 /* 編集パネル */
 .editor {
