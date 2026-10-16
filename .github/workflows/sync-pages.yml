@@ -1,0 +1,20 @@
+# main への push のたびに、公開用の gh-pages ブランチへ同じ内容を反映する
+name: Sync gh-pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push main to gh-pages
+        run: git push --force origin HEAD:refs/heads/gh-pages
