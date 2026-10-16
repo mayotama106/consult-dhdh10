@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>フレームワーク図鑑</title>
+<meta name="description" content="3C・SWOT・5フォースなど、コンサルの資料づくりで頻出のフレームワーク図を一覧で探して、項目を入れるだけで図を作れるツール。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="#" aria-label="フレームワーク図鑑 トップへ">
+      <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true">
+        <rect x="1" y="1" width="12" height="12" rx="2" class="m1"></rect>
+        <rect x="15" y="1" width="12" height="12" rx="2" class="m2"></rect>
+        <rect x="1" y="15" width="12" height="12" rx="2" class="m2"></rect>
+        <rect x="15" y="15" width="12" height="12" rx="2" class="m3"></rect>
+      </svg>
+      <span>フレームワーク図鑑</span>
+    </a>
+    <span class="head-note" id="head-count"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 一覧 -->
+  <section id="gallery-view">
+    <div class="intro">
+      <h1>資料でよく使う図を、<br>選んで、書き換えて、貼る。</h1>
+      <p>3CやSWOTなど、コンサルの資料で繰り返し登場するフレームワークを集めました。図を開いて項目を書き換えると、16:9の図がその場で作られます。PNGでコピーすればそのままスライドに貼れます。</p>
+    </div>
+    <div class="filters">
+      <label class="search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="13" y1="13" x2="18" y2="18"></line></svg>
+        <input id="q" type="search" placeholder="名前・用途で探す（例：競合、優先順位）" autocomplete="off">
+      </label>
+      <div class="chips" id="chips" role="tablist" aria-label="カテゴリ"></div>
+    </div>
+    <div id="gallery"></div>
+    <p class="empty" id="empty" hidden>該当するフレームワークがありません。別の言葉で探してみてください。</p>
+  </section>
+
+  <!-- 詳細・編集 -->
+  <section id="detail-view" hidden>
+    <a class="back" href="#">← 一覧に戻る</a>
+    <header class="d-head">
+      <span class="tag" id="d-cat"></span>
+      <h1 id="d-name"></h1>
+      <p class="en" id="d-en"></p>
+      <p class="summary" id="d-summary"></p>
+    </header>
+    <div class="d-body">
+      <div class="d-main">
+        <div class="stage-wrap">
+          <div class="stage" id="stage"></div>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="btn-copy">PNGをコピー</button>
+          <button type="button" class="btn" id="btn-png">PNG保存</button>
+          <button type="button" class="btn" id="btn-svg">SVG保存</button>
+          <span class="ratio">16:9・1920×1080px</span>
+        </div>
+        <div class="guide">
+          <div>
+            <h2>使いどころ</h2>
+            <ul id="d-when"></ul>
+          </div>
+          <div>
+            <h2>作成のコツ</h2>
+            <ul id="d-tips"></ul>
+          </div>
+          <div>
+            <h2>出典・由来</h2>
+            <p id="d-origin"></p>
+          </div>
+        </div>
+      </div>
+      <aside class="editor" aria-label="図の内容を編集">
+        <div class="ed-head">
+          <h2>内容を編集</h2>
+          <button type="button" class="btn small" id="btn-reset">サンプルに戻す</button>
+        </div>
+        <p class="ed-note" id="ed-note">サンプルは架空のカフェチェーンの例です。書き換えると図にすぐ反映され、このブラウザに保存されます。</p>
+        <form id="ed-form" autocomplete="off"></form>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">フレームワーク図鑑 ・ 図はすべてブラウザ内で生成されます。入力内容が外部に送信されることはありません。</div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="assets/frameworks.js"></script>
+<script src="assets/render.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
