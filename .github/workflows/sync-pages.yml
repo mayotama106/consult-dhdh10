@@ -1,4 +1,4 @@
-# main への push のたびに、公開用の gh-pages ブランチへ同じ内容を反映する
+# main への push のたびに、公開用の gh-pages ブランチへ同じ内容を反映し、Pages を再ビルドする
 name: Sync gh-pages
 
 on:
@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   sync:
@@ -18,3 +19,8 @@ jobs:
           fetch-depth: 0
       - name: Push main to gh-pages
         run: git push --force origin HEAD:refs/heads/gh-pages
+      # ワークフローのトークンによる push では Pages のビルドが自動で走らないため、明示的に依頼する
+      - name: Request Pages build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
