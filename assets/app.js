@@ -167,6 +167,7 @@
       g.appendChild(sec);
     });
     $('empty').hidden = count > 0;
+    $('btn-deck').textContent = `表示中の図をまとめてPowerPointに（${count}枚）`;
   }
 
   // ---------- 詳細 ----------
@@ -316,14 +317,24 @@
       form.appendChild(g);
     }
 
-    if ('center' in data) {
-      const g = group('中央のラベル');
-      g.appendChild(field('ラベル', 'center', input(data.center, (v) => { data.center = v; })));
+    // 1行の文字列のデータ（キーがあれば入力欄を出す）
+    const STRING_FIELDS = [
+      ['center', '中央のラベル', 'ラベル'],
+      ['margin', '右端の表記', 'ラベル'],
+      ['unit', '単位', '例：億円、%（空欄で非表示）'],
+      ['highlight', '強調する項目', '項目名をそのまま入力（空欄で強調なし）'],
+    ];
+    STRING_FIELDS.forEach(([key, title, lab]) => {
+      if (!(key in data)) return;
+      const g = group(title);
+      g.appendChild(field(lab, key, input(data[key], (v) => { data[key] = v; })));
       form.appendChild(g);
-    }
-    if ('margin' in data) {
-      const g = group('右端の表記');
-      g.appendChild(field('ラベル', 'margin', input(data.margin, (v) => { data.margin = v; })));
+    });
+
+    // カンマ区切りの並び（ガントチャートの期間など）
+    if ('periods' in data) {
+      const g = group('期間', '左から順にカンマ区切りで。');
+      g.appendChild(field('期間の見出し', 'periods', input(data.periods.join(', '), (v) => { data.periods = splitCells(v).filter(Boolean); })));
       form.appendChild(g);
     }
 
@@ -339,9 +350,16 @@
       form.appendChild(g);
     }
 
-    if ('tree' in data) {
-      const g = group('ツリーの内容', fw.editorHint);
-      const t = textarea(data.tree, 14, (v) => { data.tree = v; });
+    // 複数行テキストで書くデータ（ツリー・ウォーターフォール・ガントチャート）
+    const TEXT_FIELDS = [
+      ['tree', 'ツリーの内容', '項目（インデントで階層）'],
+      ['steps', '増減の項目', '1行に「項目名, 値」'],
+      ['plan', 'タスクとマイルストーン', '1行に1タスク'],
+    ];
+    TEXT_FIELDS.forEach(([key, title, lab]) => {
+      if (!(key in data)) return;
+      const g = group(title, fw.editorHint);
+      const t = textarea(data[key], 12, (v) => { data[key] = v; });
       t.classList.add('mono');
       t.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return;
@@ -349,23 +367,24 @@
         t.setRangeText('  ', t.selectionStart, t.selectionEnd, 'end');
         t.dispatchEvent(new Event('input'));
       });
-      g.appendChild(field('項目（インデントで階層）', 'tree', t));
+      g.appendChild(field(lab, key, t));
       form.appendChild(g);
-    }
+    });
 
     if ('table' in data) {
       const tb = data.table;
-      const journey = fw.layout === 'journey';
-      const g = group(journey ? 'ステージと行' : '表の内容',
-        journey
-          ? '1行目はステージ名をカンマ区切りで。下の欄は1行に「行名, ステージ1, ステージ2, …」。セル内を「／」で区切ると箇条書きになります。'
-          : '列見出しはカンマ区切り。下の欄は1行に1行分をカンマ区切りで。○・×・△は色付きの記号になります。');
-      const cols = journey ? tb.columns.slice(1) : tb.columns;
-      g.appendChild(field(journey ? 'ステージ' : '列見出し', 'tb-cols', input(cols.join(', '), (v) => {
+      // 1列目が行の名前になる表（ジャーニー・グラフ）は、列見出しから1列目を除いて編集する
+      const rowLabels = fw.layout === 'journey' || fw.layout === 'chart';
+      const hint = fw.editorHint || (fw.layout === 'journey'
+        ? '1行目はステージ名をカンマ区切りで。下の欄は1行に「行名, ステージ1, ステージ2, …」。セル内を「／」で区切ると箇条書きになります。'
+        : '列見出しはカンマ区切り。下の欄は1行に1行分をカンマ区切りで。○・×・△は色付きの記号になります。');
+      const g = group(fw.tableTitle || (fw.layout === 'journey' ? 'ステージと行' : '表の内容'), hint);
+      const cols = rowLabels ? tb.columns.slice(1) : tb.columns;
+      g.appendChild(field(fw.colsLabel || (fw.layout === 'journey' ? 'ステージ' : '列見出し'), 'tb-cols', input(cols.join(', '), (v) => {
         const c = splitCells(v);
-        tb.columns = journey ? [''].concat(c) : c;
+        tb.columns = rowLabels ? [''].concat(c) : c;
       })));
-      g.appendChild(field('行', 'tb-rows', textarea(tb.rows.map((r) => r.join(', ')).join('\n'), 8, (v) => {
+      g.appendChild(field(fw.rowsLabel || '行', 'tb-rows', textarea(tb.rows.map((r) => r.join(', ')).join('\n'), 8, (v) => {
         tb.rows = splitLines(v).map(splitCells);
       })));
       form.appendChild(g);
@@ -527,6 +546,31 @@
     });
   }
 
+  // ---------- まとめて書き出し（一覧に表示中の図を1つのPowerPointに） ----------
+  function dataFor(f) {
+    const d = read('data:' + f.id, null) || defaults(f);
+    if (!d.slide) d.slide = defaults(f).slide;
+    return d;
+  }
+
+  function bindDeck() {
+    const btn = $('btn-deck');
+    btn.addEventListener('click', () => {
+      // 一覧と同じ並び（カテゴリ順）でスライドにする
+      const list = CATS.flatMap((c) => FWS.filter((f) => f.cat === c.id && matches(f)));
+      if (!list.length) { toast('書き出す図がありません。絞り込みを解除してください。'); return; }
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = `書き出し中…（${list.length}枚）`;
+      // 書き出しの直前に描くので、編集内容と選択中のデザインが反映される
+      const scenes = list.map((f) => { const d = dataFor(f); return D.slide(f, d, d.slide, { theme: state.theme }); });
+      D.toPptx(scenes, 'フレームワーク図鑑', { title: 'フレームワーク図鑑' }).then(
+        () => toast(`${list.length}枚のスライドをPowerPointに保存しました。`),
+        (e) => toast(e.message || 'PowerPointに書き出せませんでした。')
+      ).finally(() => { btn.disabled = false; btn.textContent = label; });
+    });
+  }
+
   // ---------- ルーティング ----------
   function route() {
     const id = decodeURIComponent(location.hash.replace(/^#/, ''));
@@ -557,6 +601,7 @@
     buildChips();
     buildThemePickers();
     bindToolbar();
+    bindDeck();
     window.addEventListener('hashchange', route);
     route();
     // Webフォントの読み込み後に文字幅を測り直して描き直す

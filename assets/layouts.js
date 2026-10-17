@@ -374,16 +374,33 @@
     });
   });
 
-  // 表（VRIO など）。○ × △ はテーマの good / bad / warn 色の記号になる
+  // 表（VRIO・ハーベイボール比較表など）
+  //   ○ × △ はテーマの good / bad / warn 色の記号になる
+  //   fw.harvey が true のときは 0〜4 の数字（または ○◔◑◕●）をハーベイボールで描く
+  const HARVEY_GLYPH = { '○': 0, '◯': 0, '◔': 1, '◑': 2, '◕': 3, '●': 4 };
+  function harveyLevel(v) {
+    const t = String(v).trim();
+    if (t in HARVEY_GLYPH) return HARVEY_GLYPH[t];
+    if (/^[0-4](\.\d+)?$/.test(t)) return parseFloat(t);
+    return null;
+  }
+  function harveyBall(c, cx, cy, r, level) {
+    const { K } = c;
+    c.circle(cx, cy, r, { fill: K.bg });
+    c.pie(cx, cy, r, level / 4, { fill: K.strong });
+    c.circle(cx, cy, r, { stroke: K.strong, sw: 1.5 });
+  }
+
   L('table', (c, d, fw) => {
     const { W, H, K } = c;
+    const harvey = !!(fw && fw.harvey);
     const tb = d.table || { columns: [], rows: [] };
     const cols = tb.columns.length || 1;
     const weights = (fw && fw.colWeights) || tb.columns.map((_, i) => (i === 0 ? 2.4 : 1));
     const sum = weights.slice(0, cols).reduce((a, b) => a + b, 0);
-    const tw = W - 40, hh = 56;
+    const tw = W - 40, hh = 56, legendH = harvey ? 34 : 0;
     const rows = tb.rows.length || 1;
-    const rh = Math.min(110, (H - 40 - hh - 4) / rows);
+    const rh = Math.min(110, (H - 40 - hh - 4 - legendH) / rows);
     const mark = (v) => {
       const t = String(v).trim();
       if (/^[○◯〇]$/.test(t)) return K.good;
@@ -396,17 +413,21 @@
     xs.push(20 + tw);
     c.rect(20, 20, tw, hh, { fill: K.primary });
     tb.columns.forEach((col, i) => c.label(col, xs[i] + 6, 22, xs[i + 1] - xs[i] - 12, hh - 4, { fill: c.on(K.primary), size: 15, min: 9 }));
+    const br = Math.min(16, rh * 0.3);
     tb.rows.forEach((row, r) => {
       const y = 20 + hh + 4 + r * rh;
       c.rect(20, y, tw, rh - 4, { fill: r % 2 ? K.bg : K.faint, rx: Math.min(4, c.style.radius) });
       for (let i = 0; i < cols; i++) {
         const v = row[i] == null ? '' : String(row[i]);
-        const mc = mark(v);
         const cw = xs[i + 1] - xs[i];
-        if (mc) {
+        const level = harvey && i > 0 ? harveyLevel(v) : null;
+        const mc = harvey ? null : mark(v);
+        if (level != null) {
+          harveyBall(c, xs[i] + cw / 2, y + (rh - 4) / 2, br, level);
+        } else if (mc) {
           c.label(v.trim(), xs[i], y, cw, rh - 4, { size: 24, fill: mc });
         } else {
-          const last = i === cols - 1 && cols > 2;
+          const last = i === cols - 1 && cols > 2 && !harvey;
           c.label(v, xs[i] + 10, y + 4, cw - 20, rh - 12, {
             size: 16, weight: i === 0 || last ? 700 : 400, fill: last ? K.strong : K.ink,
             anchor: i === 0 ? 'start' : 'middle', min: 8, lh: 1.35,
@@ -415,6 +436,21 @@
       }
     });
     for (let i = 1; i < cols; i++) c.line(xs[i], 20 + hh + 8, xs[i], 20 + hh + rows * rh - 4, { stroke: K.line, sw: 1 });
+    if (harvey) {
+      // 凡例（右下）
+      const labels = (fw.harveyLabels || ['劣る', '', '普通', '', '優れている']);
+      let x = W - 20;
+      const y = H - 20 - legendH / 2 + 4;
+      [4, 2, 0].forEach((lv) => {
+        const t = labels[lv] || '';
+        const tw2 = c.measure(t, 13, 400);
+        x -= tw2;
+        c.text(x, y + 5, t, { size: 13, fill: K.sub });
+        x -= 20;
+        harveyBall(c, x + 4, y, 8, lv);
+        x -= 22;
+      });
+    }
   });
 
   // 見出し付き 2×2（クロスSWOT）

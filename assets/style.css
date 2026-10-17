@@ -329,6 +329,8 @@ main.wrap { padding-block: 32px 64px; }
   margin-top: 4px;
 }
 .design-label { font-size: var(--fs-sm); color: var(--ink-2); }
+.deck-btn { margin-left: auto; }
+@media (max-width: 720px) { .deck-btn { margin-left: 0; width: 100%; } }
 .theme-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .theme-opt {
   display: inline-flex;

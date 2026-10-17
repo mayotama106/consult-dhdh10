@@ -142,6 +142,21 @@
     const a1 = angle + Math.PI * 0.82, a2 = angle - Math.PI * 0.82;
     poly(s, [[x, y], [x + Math.cos(a1) * size, y + Math.sin(a1) * size], [x + Math.cos(a2) * size, y + Math.sin(a2) * size]], { fill: color });
   }
+  // 扇形（ハーベイボール・円グラフ用）。frac は 0〜1、12時の位置から時計回り
+  function pie(s, cx, cy, r, frac, o) {
+    o = o || {};
+    frac = Math.max(0, Math.min(1, frac));
+    if (frac <= 0) return;
+    if (frac >= 1) return circle(s, cx, cy, r, { fill: o.fill });
+    const pts = [[cx, cy]];
+    const n = Math.max(2, Math.ceil(frac * 48));
+    for (let i = 0; i <= n; i++) {
+      const a = -Math.PI / 2 + (Math.PI * 2 * frac * i) / n;
+      pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return poly(s, pts, { fill: o.fill });
+  }
+
   function text(s, x, y, str, o) {
     o = o || {};
     return s.add({ t: 'text', x, y, str: String(str), size: o.size || 14, weight: o.weight || 400, fill: o.fill || K.ink, anchor: o.anchor || 'start' });
@@ -277,7 +292,7 @@
       W: s.w, H: s.h, K, style: T.style, theme: T,
       accent: (i) => accent(i, fw), tint, mix, on, measure, wrap, clean, parseTree,
       rect: b(rect), circle: b(circle), poly: b(poly), polyline: b(polyline), line: b(line),
-      arrow: b(arrow), arrowHead: b(arrowHead), text: b(text), list: b(list), label: b(label),
+      arrow: b(arrow), arrowHead: b(arrowHead), pie: b(pie), text: b(text), list: b(list), label: b(label),
       card: b(card), chevron: b(chevron),
       // 図の高さを内容に合わせて伸ばすとき（ツリーなど）
       setHeight: (h) => { s.h = h; },
